@@ -1,25 +1,143 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Assignment1: Reproducible Research"
+output: html_document
+author: Chetan Rao
 ---
+### Assignment1 and Requirements
+This is an R Markdown document for assignment 1 under Reproducible Research.
+
+This document needs to be processed by Knitr to transform in the HTML File.
+
+Need to use
+- echo = TRUE
+- base lattice ggplot2
+- Fork
+- Push the assignment into the forked repository
+- URL of forked and SHA-1 commmit ID
+- Use the Forked Git hub Repo
+
+### Loading and preprocessing the data
+
+```{r unzipping the archive and reading in the Activity data, message=F,warning=F}
+require(knitr)
+opts_knit$set("c:\\coursera\\reproducibleResearch\\assignment1\\RepData_PeerAssessment1")
+unzip('activity.zip',overwrite=TRUE)
+Actdata = read.csv("activity.csv",na.strings = "NA",header=TRUE)
+Actdata = na.omit(Actdata)
+head(Actdata)
+
+```
+### What is mean total number of steps taken per day?
+
+```{r , message=F,warning=F}
+# 1. totalSteps variables: Calculate the total number of steps taken per day
+require(plyr)
+totalSteps = ddply(Actdata,"date",numcolwise(sum))
+require(ggplot2)
+q <- qplot(totalSteps$date,totalSteps$steps,xlab = 'Dates', ylab = 'Total Number of Steps taken')
+
+#title('Total number of steps taken per day')
+q+theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 
-## Loading and preprocessing the data
+# 2. Make a histogram of the total number of steps taken each day
+require(util)
+hist(totalSteps$steps,xlab = 'Number of Steps', ylab = 'Frequency')
 
 
 
-## What is mean total number of steps taken per day?
+# 3. Calculate and report the mean and median of the total number of steps taken per day
+summary(totalSteps$steps)
+
+meanSteps <- mean(totalSteps$steps)
+medianSteps <- median(totalSteps$steps)
+
+```
+
+### What is the average daily activity pattern?
+```{r, message=F}
+# 1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+dailyPattern = ddply(Actdata,"interval",numcolwise(sum))
+plot(dailyPattern$interval,dailyPattern$steps,type='l',xlab='5min Time Interval in a day',ylab='Average Steps per interval')
+title('5-min interval Vs the average steps, avg acr all days')
 
 
+# 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 
-## What is the average daily activity pattern?
+# Maximum Number of steps
+max(dailyPattern$steps)
 
+# Corresponding 5-minute interval on average across all the days
+dailyPattern$interval[which(grepl(max(dailyPattern$steps), dailyPattern$steps))]
 
+```
 
-## Imputing missing values
+### Imputing missing values
 
+```{r, message=F}
 
+# 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
 
-## Are there differences in activity patterns between weekdays and weekends?
+missingValue = read.csv("activity.csv",na.strings = "NA",header=TRUE)
+
+miss <- is.na(missingValue$steps)
+
+# 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+# Find missingIndices
+missingIndices <- which(miss==TRUE)
+
+# Before imputing missing Values
+head(missingValue)
+
+# Replace steps with the mean
+replaceValueMatrix <- missingValue
+replaceValueMatrix$steps[missingIndices] <- matrix(meanSteps,length(missingIndices),1,byrow=TRUE)
+
+# 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+# After imputing missing Values
+head(replaceValueMatrix)
+
+# 4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+# Histogram
+totalSteps = ddply(replaceValueMatrix,"date",numcolwise(sum))
+
+hist(totalSteps$steps,xlab = 'Number of Steps', ylab = 'Frequency')
+#title('Histogram of the total number of steps taken each day')
+
+# Mean and Median
+summary(replaceValueMatrix$steps)
+
+# Comparing mean for the replaced dataSet we observe mean has reduced 1444 (this means number of NA which were replaced dominate the overall mean) and median is 0 (After considering the NA replaced elements the median is the element under 0)
+
+meanSteps <- mean(replaceValueMatrix$steps)
+medianSteps <- median(replaceValueMatrix$steps)
+
+```
+
+# Are there differences in activity patterns between weekdays and weekends?
+
+```{r, message=F}
+# 1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+Actdata["FactorVariable"] <- NA
+Actdata$FactorVariable <- weekdays(as.Date(Actdata$date))
+Actdata$FactorVariable[Actdata$FactorVariable == 'Monday'] = 'Weekday'
+Actdata$FactorVariable[Actdata$FactorVariable == 'Tuesday'] = 'Weekday'
+Actdata$FactorVariable[Actdata$FactorVariable == 'Wednesday'] = 'Weekday'
+Actdata$FactorVariable[Actdata$FactorVariable == 'Thursday'] = 'Weekday'
+Actdata$FactorVariable[Actdata$FactorVariable == 'Friday'] = 'Weekday'
+Actdata$FactorVariable[Actdata$FactorVariable == 'Saturday'] = 'Weekend'
+Actdata$FactorVariable[Actdata$FactorVariable == 'Sunday'] = 'Weekend'
+
+# 2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
+library(lattice)
+
+AvgSteps = ddply(Actdata,cbind("FactorVariable","interval"),numcolwise(mean))
+
+xyplot(AvgSteps$steps ~ AvgSteps$interval| AvgSteps$FactorVariable, 
+       grid = TRUE, type = 'l', layout=c(1,2))
+
+```
